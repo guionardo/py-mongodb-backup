@@ -65,8 +65,9 @@ setup(
         exclude=["tests"],
     ),
     install_requires=[
-        "pymongo",        
-        "orjson",        
+        "pymongo",
+        "orjson",
+        "pathvalidate"
     ],
     zip_safe=True,
     python_requires='>=3.6.*'

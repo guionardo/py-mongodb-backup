@@ -1,7 +1,9 @@
 import io
-import uuid
 import logging
+import os
+import re
 import time
+import uuid
 from typing import Union
 
 from pymongo import DeleteMany, InsertOne, MongoClient
@@ -27,6 +29,7 @@ class MongoBackupService:
     def __init__(self, connection_string: str):
         self._connection_string = connection_string
         self._client: MongoClient = MongoClient(connection_string)
+        self._file: io.FileIO = None
 
     def _get_database(self, database_name: Union[str, Database]) -> Database:
         if isinstance(database_name, str):
@@ -44,7 +47,12 @@ class MongoBackupService:
 
     def _get_file_object(self, file_object: Union[str, io.FileIO], writable: bool = True) -> io.FileIO:
         if isinstance(file_object, str):
-            file_object = open(file_object, 'a' if writable else 'r')
+            file_object = os.path.normpath(file_object)
+
+            self.LOG.debug('Opening file %s : writable=%s',
+                           file_object, writable)
+            file_object = open(file_object, 'w' if writable else 'r')
+            self._file = file_object
         elif not isinstance(file_object, io.IOBase):
             raise MongoDBBackupException(
                 "Invalid file_object {0}", file_object)
@@ -57,18 +65,33 @@ class MongoBackupService:
 
         return file_object
 
-    def backup_database(self, database_name: str, file_object: Union[str, io.FileIO]):
+    def _close_file_object(self):
+        if self._file:
+            self.LOG.debug('Closing file %s', self._file.name)
+            self._file.close()
+            self._file = None
+
+    def __del__(self):
+        self._close_file_object()
+
+    def backup_database(self, database_name: str, file_object: Union[str, io.FileIO]) -> Union[int, int]:
+        """ Returns objects, bytes written """
         database = self._get_database(database_name)
         file_object = self._get_file_object(file_object)
         written = file_object.write(f'{self.DATABASE} {database.name}\n')
-
+        obj_count = 0
         for collection_name in database.list_collection_names():
-            written += self.backup_collection(database,
-                                              collection_name, file_object)
+            _o, _w = self.backup_collection(database,
+                                            collection_name, file_object)
+            obj_count += _o
+            written += _w
         written += file_object.write(f'{self.END_DATABASE} {database.name}\n')
-        return written
+        self._close_file_object()
+        return obj_count, written
 
-    def backup_collection(self, database_name: str, collection_name: str, file_object: io.FileIO) -> int:
+    def backup_collection(self, database_name: str, collection_name: str, file_object: io.FileIO) -> Union[int, int]:
+        """ Returns objects, bytes written """
+        obj_count, written = 0, 0
         file_object = self._get_file_object(file_object)
 
         database = self._get_database(database_name)
@@ -77,6 +100,7 @@ class MongoBackupService:
             raise MongoDBBackupException('Collection {0} not found in {1}/{2}',
                                          collection_name, self._connection_string, database.name)
         collection: Collection = database.get_collection(collection_name)
+
         written = file_object.write(
             f'{self.COLLECTION} {collection.full_name}\n')
         indexes = collection.index_information()
@@ -86,10 +110,12 @@ class MongoBackupService:
         for data in collection.find():
             written += file_object.write(
                 f'{self.DATA} {serialize_data(data)}\n')
+            obj_count += 1
         written += file_object.write(
             f'{self.END_COLLECTION} {collection.full_name}\n')
-
-        return written
+        self.LOG.debug('COLLECTION %s: %s objects, %s bytes written',
+                       collection.full_name, obj_count, written)
+        return obj_count, written
 
     def restore_database(self, database_name: str, file_object: io.FileIO) -> bool:
         database = self._get_database(database_name)
