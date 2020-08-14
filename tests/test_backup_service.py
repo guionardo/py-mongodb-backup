@@ -1,5 +1,5 @@
-import unittest
 import logging
+import unittest
 from io import StringIO
 
 from mongodb_backup.backup_service import MongoBackupService
@@ -44,7 +44,7 @@ class TestBackupService(unittest.TestCase):
         self.assertIsNotNone(backup)
 
     def test_restore_database_from_file(self):
-        with open('backup.dat','r') as f:
-            backup = self.service.restore_database('b2b_receiver',f)
+        with open('backup.dat', 'r') as f:
+            backup = self.service.restore_database('b2b_receiver', f)
 
         self.assertIsNotNone(backup)

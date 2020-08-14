@@ -1,6 +1,5 @@
 import codecs
 import os
-import sys
 
 from setuptools import find_packages, setup
 
@@ -53,7 +52,7 @@ setup(
         "Programming Language :: Python :: 3.8"
     ],
     url='https://github.com/guionardo/py-mongodb-backup',
-    keywords='escoteiros scouts mappa',
+    keywords='mongodb backup',
     project_urls={
         "Documentation": "https://github.com/guionardo/py-mongodb-backup/wiki",
         "Source": "https://github.com/guionardo/py-mongodb-backup",
@@ -65,8 +64,8 @@ setup(
         exclude=["tests"],
     ),
     install_requires=[
-        "pymongo",        
-        "orjson",        
+        "pymongo",
+        "orjson",
     ],
     zip_safe=True,
     python_requires='>=3.6.*'

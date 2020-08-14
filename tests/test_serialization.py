@@ -1,7 +1,8 @@
-import unittest
 import datetime
+import unittest
 
-from mongodb_backup.serialization_service import serialize_data, deserialize_data
+from mongodb_backup.serialization_service import (deserialize_data,
+                                                  serialize_data)
 
 
 class TestSerialization(unittest.TestCase):
